@@ -97,34 +97,34 @@ func getPacketType(device pcap.Interface, packet gopacket.Packet) []byte {
 	packetType := []byte{0, 0}
 	if isAnomaly(packet) {
 		packetType[1] = 1
-		fmt.Println("Anomaly")
+		fmt.Print("Anomaly ")
 	}else if lldp := packet.Layer(layers.LayerTypeLinkLayerDiscovery); lldp != nil {
 		packetType[1] = 2
-		fmt.Println("LLDP")
+		fmt.Print("LLDP ")
 	}else if dns := packet.Layer(layers.LayerTypeDNS); dns != nil {
 		packetType[1] = 3
-		fmt.Println("DNS")
+		fmt.Print("DNS ")
 	}else if icmpv4 := packet.Layer(layers.LayerTypeICMPv4); icmpv4 != nil {
 		packetType[1] = 4
-		fmt.Println("ICMPv4")
+		fmt.Print("ICMPv4 ")
 	}else if icmpv6 := packet.Layer(layers.LayerTypeICMPv6); icmpv6 != nil {
 		packetType[1] = 4
-		fmt.Println("ICMPv6")
+		fmt.Print("ICMPv6 ")
 	}else if dhcpv4 := packet.Layer(layers.LayerTypeDHCPv4); dhcpv4 != nil {
 		packetType[1] = 5
-		fmt.Println("DHCPv4")
+		fmt.Print("DHCPv4 ")
 	}else if arp := packet.Layer(layers.LayerTypeARP); arp != nil {
 		packetType[1] = 6
-		fmt.Println("ARP")
+		fmt.Print("ARP ")
 	}else if igmp := packet.Layer(layers.LayerTypeIGMP); igmp != nil {
 		packetType[1] = 7
-		fmt.Println("IGMP")
+		fmt.Print("IGMP ")
 	}else if udp := packet.Layer(layers.LayerTypeUDP); udp != nil {
 		packetType[1] = 8
-		fmt.Println("UDP")
+		fmt.Print("UDP ")
 	}else if tcp := packet.Layer(layers.LayerTypeTCP); tcp != nil {
 		packetType[1] = 9
-		fmt.Println("TCP")
+		fmt.Print("TCP ")
 	}
 	// 送信ならpacketType[0]を1にする、受信なら0のまま
 	for _, address := range device.Addresses {
