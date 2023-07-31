@@ -85,16 +85,16 @@ BLACK = (0, 0, 0)
 COLORS = (WHITE, GREEN, RED, BLUE, PURPLE, PINK, YELLOW, ORANGE, CYAN, LIME, GRAY, BLACK)
 
 # 0 White others
-# 1 Green
-# 2 Red Anomaly
-# 3 Blue TCP
-# 4 Purple ARP
-# 5 Pink ICMP
-# 6 Yellow UDP
+# 1 Red Anomaly
+# 2 Green LLDP
+# 3 Lime DNS
+# 4 Pink ICMP
+# 5 Cyan DHCP
+# 6 Purple ARP
 # 7 Orange IGMP
-# 8 Cyan DHCP
-# 9 Lime DNS
-PACKETS = (WHITE, GREEN, RED, BLUE, PURPLE, PINK, YELLOW, ORANGE, CYAN, LIME)
+# 8 Yellow UDP
+# 9 Blue TCP
+PACKETS = (WHITE, RED, GREEN, LIME, PINK, CYAN, PURPLE, ORANGE, YELLOW, BLUE)
 
 print("read start")
 
