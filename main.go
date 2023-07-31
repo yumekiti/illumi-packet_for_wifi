@@ -3,26 +3,27 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-    "github.com/tarm/serial"
+	"github.com/tarm/serial"
 )
 
 func main() {
-    // シリアルポートの設定
-    config := &serial.Config{
-        Name: "COM11", // シリアルポートのデバイス名（適宜変更してください）
-        Baud: 9600,           // ボーレート（通信速度）を設定します
-    }
+	// シリアルポートの設定
+	config := &serial.Config{
+		Name: "COM13", // シリアルポートのデバイス名（適宜変更してください）
+		Baud: 9600,   // ボーレート（通信速度）を設定します
+	}
 
-    // シリアルポートを開く
-    port, err := serial.OpenPort(config)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer port.Close()
+	// シリアルポートを開く
+	port, err := serial.OpenPort(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer port.Close()
 
 	// ネットワークデバイスの取得
 	devices, err := pcap.FindAllDevs()
@@ -43,7 +44,8 @@ func main() {
 	var deviceName string
 	fmt.Print("Select device number: ")
 	fmt.Scan(&deviceNumber)
-	deviceName = devices[deviceNumber].Name
+	selectedDevice := devices[deviceNumber]
+	deviceName = selectedDevice.Name
 	fmt.Println("Selected device: ", deviceName)
 
 	// 最初のネットワークデバイスを使用してパケットキャプチャを開始
@@ -53,59 +55,78 @@ func main() {
 	}
 	defer handle.Close()
 
-	// パケットをキャプチャして処理
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
+	// パケットのキュー
+	packetQueue := make(chan gopacket.Packet, 100)
+
+	// パケットをキャプチャしてキューに入れるゴルーチン
+	go func() {
+		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+		for packet := range packetSource.Packets() {
+			packetQueue <- packet
+		}
+	}()
+
+	// キューからパケットを順に取り出して処理するゴルーチン
+	for packet := range packetQueue {
 		// パケットの種類を判別して数字を返す
-		packetType := getPacketType(packet)
-        fmt.Println([]byte{byte(packetType)})
-        _, err = port.Write([]byte{byte(packetType)})
-        if err != nil {
-            log.Fatal(err)
-        }
+		packetType := getPacketType(selectedDevice, packet)
+		fmt.Println(packetType)
+		_, err = port.Write(packetType)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// 0.1秒待つ
+		time.Sleep(150 * time.Millisecond)
 	}
 }
 
-func getPacketType(packet gopacket.Packet) int {
-	// パケットのレイヤーを取得
-	networkLayer := packet.NetworkLayer()
-	transportLayer := packet.TransportLayer()
+func isAnomaly(packet gopacket.Packet) bool {
+	anml := false
+	if tcp := packet.Layer(layers.LayerTypeTCP); tcp != nil {
+			tcpl, _ := tcp.(*layers.TCP)
+			// Bool flags: FIN, SYN, RST, PSH, ACK, URG, ECE, CWR, NS
+			if tcpl.FIN && tcpl.URG && tcpl.PSH {
+					anml = true
+			}
+	}
+	return anml
+}
 
-	// パケットの種類を判別
-	if networkLayer != nil && transportLayer != nil {
-		switch networkLayer.LayerType() {
-		case layers.LayerTypeEthernet:
-			switch transportLayer.LayerType() {
-			case layers.LayerTypeTCP:
-				return 3 // Blue TCP
-			case layers.LayerTypeUDP:
-				return 6 // Yellow UDP
-			}
-		case layers.LayerTypeIPv4:
-			switch transportLayer.LayerType() {
-			case layers.LayerTypeTCP:
-				return 3 // Blue TCP
-			case layers.LayerTypeUDP:
-				return 6 // Yellow UDP
-			}
-		case layers.LayerTypeIPv6:
-			switch transportLayer.LayerType() {
-			case layers.LayerTypeTCP:
-				return 3 // Blue TCP
-			case layers.LayerTypeUDP:
-				return 6 // Yellow UDP
-			}
+// 返り値は[(受信なら0, 送信なら1), categorizePacketを参照しパケットの種類]
+func getPacketType(device pcap.Interface, packet gopacket.Packet) []byte {
+	packetType := []byte{0, 0}
+	if isAnomaly(packet) {
+		packetType[1] = 1
+	}else if lldp := packet.Layer(layers.LayerTypeLinkLayerDiscovery); lldp != nil {
+		packetType[1] = 2
+	}else if dns := packet.Layer(layers.LayerTypeDNS); dns != nil {
+		packetType[1] = 3
+	}else if icmpv4 := packet.Layer(layers.LayerTypeICMPv4); icmpv4 != nil {
+		packetType[1] = 4
+	}else if icmpv6 := packet.Layer(layers.LayerTypeICMPv6); icmpv6 != nil {
+		packetType[1] = 4
+	}else if dhcpv4 := packet.Layer(layers.LayerTypeDHCPv4); dhcpv4 != nil {
+		packetType[1] = 5
+	}else if arp := packet.Layer(layers.LayerTypeARP); arp != nil {
+		packetType[1] = 6
+	}else if igmp := packet.Layer(layers.LayerTypeIGMP); igmp != nil {
+		packetType[1] = 7
+	}else if udp := packet.Layer(layers.LayerTypeUDP); udp != nil {
+		packetType[1] = 8
+	}else if tcp := packet.Layer(layers.LayerTypeTCP); tcp != nil {
+		packetType[1] = 9
+	}
+	// 送信ならpacketType[0]を1にする、受信なら0のまま
+	for _, address := range device.Addresses {
+		// panic: runtime error: invalid memory address or nil pointer dereference
+		if nil == packet.NetworkLayer() {
+			continue
 		}
-	} else if networkLayer != nil {
-		switch networkLayer.LayerType() {
-		case layers.LayerTypeEthernet:
-			return 0 // White others
-		case layers.LayerTypeIPv4:
-			return 0 // White others
-		case layers.LayerTypeIPv6:
-			return 0 // White others
+
+		if address.IP.String() == packet.NetworkLayer().NetworkFlow().Dst().String() {
+			packetType[0] = 1
 		}
 	}
 
-	return 0 // サポートされていないパケットタイプ
+	return packetType
 }

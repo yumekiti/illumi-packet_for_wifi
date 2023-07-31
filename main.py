@@ -50,15 +50,24 @@ def pixels_show():
 def pixels_set(i, color):
     ar[i] = (color[1]<<16) + (color[0]<<8) + color[2]
 
-def pixels_fill_show(color):
+def pixels_fill_show(direction, color):
     branch_num = 5
-    for i in range((NUM_LEDS - branch_num)):
-        pixels_set((branch_num - i), color)
-        pixels_set(branch_num + i, color)
-        pixels_show()
-        pixels_set((branch_num - i), BLACK)
-        pixels_set(branch_num + i, BLACK)
-        pixels_show()
+    if direction == 0:
+        for i in range((NUM_LEDS - branch_num)):
+            pixels_set((branch_num - i), color)
+            pixels_set(branch_num + i, color)
+            pixels_show()
+            pixels_set((branch_num - i), BLACK)
+            pixels_set(branch_num + i, BLACK)
+            pixels_show()
+    elif direction == 1:
+        for i in range((NUM_LEDS - branch_num)):
+            pixels_set(((NUM_LEDS - 1) - i), color)
+            pixels_set(i, color)
+            pixels_show()
+            pixels_set(((NUM_LEDS - 1) - i), BLACK)
+            pixels_set(i, BLACK)
+            pixels_show()
 
 WHITE = (255, 255, 255)
 GREEN = (136, 0, 0)
@@ -89,12 +98,13 @@ PACKETS = (WHITE, GREEN, RED, BLUE, PURPLE, PINK, YELLOW, ORANGE, CYAN, LIME)
 
 print("read start")
 
-for color in PACKETS:       
-    pixels_fill_show(color)
+for color in PACKETS:
+    pixels_fill_show(1, color)
 
 while True:
     rxData = uart.readline()
-    if rxData is not None and rxData in FILTER:
-        num = int(rxData)
-        if num >= 0 and num <= 9:
-            pixels_fill_show(PACKETS[num])
+    if rxData is not None:
+        direction = int(rxData[0])
+        color = int(rxData[1])
+        if color >= 0 and color <= 9:
+            pixels_fill_show(direction, PACKETS[color])
