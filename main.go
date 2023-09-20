@@ -39,7 +39,9 @@ func main() {
 	go func() {
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 		for packet := range packetSource.Packets() {
-			if len(packetQueue) >= 50 { continue }
+			if len(packetQueue) >= 50 {
+				continue
+			}
 			packetQueue <- packet
 		}
 	}()
@@ -60,11 +62,11 @@ func main() {
 func isAnomaly(packet gopacket.Packet) bool {
 	anml := false
 	if tcp := packet.Layer(layers.LayerTypeTCP); tcp != nil {
-			tcpl, _ := tcp.(*layers.TCP)
-			// Bool flags: FIN, SYN, RST, PSH, ACK, URG, ECE, CWR, NS
-			if tcpl.FIN && tcpl.URG && tcpl.PSH {
-					anml = true
-			}
+		tcpl, _ := tcp.(*layers.TCP)
+		// Bool flags: FIN, SYN, RST, PSH, ACK, URG, ECE, CWR, NS
+		if tcpl.FIN && tcpl.URG && tcpl.PSH {
+			anml = true
+		}
 	}
 	return anml
 }
@@ -86,31 +88,31 @@ func getPacketType(device pcap.Interface, packet gopacket.Packet) []byte {
 	if isAnomaly(packet) {
 		packetType[1] = 1
 		fmt.Print("\x1b[31mRed\tAnomaly")
-	}else if lldp := packet.Layer(layers.LayerTypeLinkLayerDiscovery); lldp != nil {
+	} else if lldp := packet.Layer(layers.LayerTypeLinkLayerDiscovery); lldp != nil {
 		packetType[1] = 2
 		fmt.Print("\x1b[32mGreen\tLLDP")
-	}else if dns := packet.Layer(layers.LayerTypeDNS); dns != nil {
+	} else if dns := packet.Layer(layers.LayerTypeDNS); dns != nil {
 		packetType[1] = 3
 		fmt.Print("\x1b[32mLime\tDNS")
-	}else if icmpv4 := packet.Layer(layers.LayerTypeICMPv4); icmpv4 != nil {
+	} else if icmpv4 := packet.Layer(layers.LayerTypeICMPv4); icmpv4 != nil {
 		packetType[1] = 4
 		fmt.Print("\x1b[35mPink\tICMPv4")
-	}else if icmpv6 := packet.Layer(layers.LayerTypeICMPv6); icmpv6 != nil {
+	} else if icmpv6 := packet.Layer(layers.LayerTypeICMPv6); icmpv6 != nil {
 		packetType[1] = 4
 		fmt.Print("\x1b[35mPink\tICMPv6")
-	}else if dhcpv4 := packet.Layer(layers.LayerTypeDHCPv4); dhcpv4 != nil {
+	} else if dhcpv4 := packet.Layer(layers.LayerTypeDHCPv4); dhcpv4 != nil {
 		packetType[1] = 5
 		fmt.Print("\x1b[36mCyan\tDHCPv4")
-	}else if arp := packet.Layer(layers.LayerTypeARP); arp != nil {
+	} else if arp := packet.Layer(layers.LayerTypeARP); arp != nil {
 		packetType[1] = 6
 		fmt.Print("\x1b[35mmPurple\tARP")
-	}else if igmp := packet.Layer(layers.LayerTypeIGMP); igmp != nil {
+	} else if igmp := packet.Layer(layers.LayerTypeIGMP); igmp != nil {
 		packetType[1] = 7
 		fmt.Print("\x1b[33mmOrange\tIGMP")
-	}else if udp := packet.Layer(layers.LayerTypeUDP); udp != nil {
+	} else if udp := packet.Layer(layers.LayerTypeUDP); udp != nil {
 		packetType[1] = 8
 		fmt.Print("\x1b[33mYellow\tUDP")
-	}else if tcp := packet.Layer(layers.LayerTypeTCP); tcp != nil {
+	} else if tcp := packet.Layer(layers.LayerTypeTCP); tcp != nil {
 		packetType[1] = 9
 		fmt.Print("\x1b[34mBlue\tTCP")
 	} else {
@@ -160,7 +162,7 @@ func setSerialPort() *serial.Config {
 		log.Fatal(err)
 	}
 	fmt.Println("Serial ports available:")
-	
+
 	// デバイスの一覧を表示
 	for i, port := range portList {
 		fmt.Printf("%d. %s\n", i, port)
@@ -177,7 +179,7 @@ func setSerialPort() *serial.Config {
 	// シリアルポートの設定
 	config := &serial.Config{
 		Name: portName, // デバイス名
-		Baud: 9600,   // ボーレート（通信速度）を設定します
+		Baud: 9600,     // ボーレート（通信速度）を設定します
 	}
 
 	return config
