@@ -105,10 +105,10 @@ func getPacketType(device pcap.Interface, packet gopacket.Packet) []byte {
 		fmt.Print("\x1b[36mCyan\tDHCPv4")
 	} else if arp := packet.Layer(layers.LayerTypeARP); arp != nil {
 		packetType[1] = 6
-		fmt.Print("\x1b[35mmPurple\tARP")
+		fmt.Print("\x1b[35mPurple\tARP")
 	} else if igmp := packet.Layer(layers.LayerTypeIGMP); igmp != nil {
 		packetType[1] = 7
-		fmt.Print("\x1b[33mmOrange\tIGMP")
+		fmt.Print("\x1b[33mOrange\tIGMP")
 	} else if udp := packet.Layer(layers.LayerTypeUDP); udp != nil {
 		packetType[1] = 8
 		fmt.Print("\x1b[33mYellow\tUDP")
