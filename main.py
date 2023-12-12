@@ -6,11 +6,10 @@ import rp2
 
 # Configure the number of WS2812 LEDs.
 NUM_LEDS = 12
-PIN_NUM = 22
-brightness = 0.2
-uart = UART(0, baudrate=9600, tx=Pin(16), rx=Pin(17), timeout=10)
+PIN_NUM = 26
+brightness = 1
+uart = UART(0, baudrate=9600, tx=Pin(0), rx=Pin(1), timeout=10)
 rxData = bytes()
-FILTER = [b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9']
 
 @rp2.asm_pio(sideset_init=rp2.PIO.OUT_LOW, out_shiftdir=rp2.PIO.SHIFT_LEFT, autopull=True, pull_thresh=24)
 def ws2812():
@@ -36,39 +35,6 @@ sm.active(1)
 # Display a pattern on the LEDs via an array of LED RGB values.
 ar = array.array("I", [0 for _ in range(NUM_LEDS)])
 
-##########################################################################
-def pixels_show():
-    dimmer_ar = array.array("I", [0 for _ in range(NUM_LEDS)])
-    for i,c in enumerate(ar):
-        r = int(((c >> 8) & 0xFF) * brightness)
-        g = int(((c >> 16) & 0xFF) * brightness)
-        b = int((c & 0xFF) * brightness)
-        dimmer_ar[i] = (g<<16) + (r<<8) + b
-    sm.put(dimmer_ar, 8)
-    time.sleep_ms(10)
-
-def pixels_set(i, color):
-    ar[i] = (color[1]<<16) + (color[0]<<8) + color[2]
-
-def pixels_fill_show(direction, color):
-    branch_num = 5
-    if direction == 0:
-        for i in range((NUM_LEDS - branch_num)):
-            pixels_set((branch_num - i), color)
-            pixels_set(branch_num + i, color)
-            pixels_show()
-            pixels_set((branch_num - i), BLACK)
-            pixels_set(branch_num + i, BLACK)
-            pixels_show()
-    elif direction == 1:
-        for i in range((NUM_LEDS - branch_num)):
-            pixels_set(((NUM_LEDS - 1) - i), color)
-            pixels_set(i, color)
-            pixels_show()
-            pixels_set(((NUM_LEDS - 1) - i), BLACK)
-            pixels_set(i, BLACK)
-            pixels_show()
-
 WHITE = (255, 255, 255)
 GREEN = (136, 0, 0)
 RED = (0, 255, 0)
@@ -82,8 +48,6 @@ LIME = (0, 255, 0)
 GRAY = (136, 136, 136)
 BLACK = (0, 0, 0)
 
-COLORS = (WHITE, GREEN, RED, BLUE, PURPLE, PINK, YELLOW, ORANGE, CYAN, LIME, GRAY, BLACK)
-
 # 0 White others
 # 1 Red Anomaly
 # 2 Green LLDP
@@ -96,15 +60,57 @@ COLORS = (WHITE, GREEN, RED, BLUE, PURPLE, PINK, YELLOW, ORANGE, CYAN, LIME, GRA
 # 9 Blue TCP
 PACKETS = (WHITE, RED, GREEN, LIME, PINK, CYAN, PURPLE, ORANGE, YELLOW, BLUE)
 
-print("read start")
+##########################################################################
+def pixels_show():
+    dimmer_ar = array.array("I", [0 for _ in range(NUM_LEDS)])
+    for i,c in enumerate(ar):
+        r = int(((c >> 8) & 0xFF) * brightness)
+        g = int(((c >> 16) & 0xFF) * brightness)
+        b = int((c & 0xFF) * brightness)
+        dimmer_ar[i] = (g<<16) + (r<<8) + b
+    sm.put(dimmer_ar, 8)
 
-for color in PACKETS:
-    pixels_fill_show(1, color)
+def pixels_set(i, color):
+    ar[i] = (color[1]<<16) + (color[0]<<8) + color[2]
+
+def display_color_directionally(direction, color):
+    branch_num = 5
+    black_color = (0, 0, 0)
+    if direction == 0:
+        for i in range(NUM_LEDS - branch_num):
+            if ((branch_num - 1) - i) >= 0:
+                pixels_set(((branch_num - 1) - i), color)
+            if (branch_num + i) <= (NUM_LEDS - 1):
+                pixels_set((branch_num + i), color)
+            pixels_show()
+            time.sleep_ms(50)
+            if ((branch_num - 1) - i) >= 0:
+                pixels_set(((branch_num - 1) - i), black_color)
+            if (branch_num + i) <= (NUM_LEDS - 1):
+                pixels_set((branch_num + i), black_color)
+            pixels_show()
+    elif direction == 1:
+        for i in range(NUM_LEDS - branch_num):
+            if (NUM_LEDS - (i + 1)) >= 0:
+                pixels_set((NUM_LEDS - (i + 1)), color)
+            if i >= (NUM_LEDS - branch_num) - branch_num:
+                pixels_set(i - ((NUM_LEDS - branch_num) - branch_num), color)
+            pixels_show()
+            time.sleep_ms(50)
+            if (NUM_LEDS - (i + 1)) >= 0:
+                pixels_set((NUM_LEDS - (i + 1)), black_color)
+            if i >= (NUM_LEDS - branch_num) - branch_num:
+                pixels_set(i - ((NUM_LEDS - branch_num) - branch_num), black_color)
+            pixels_show()
+
+
+display_color_directionally(1, WHITE)
 
 while True:
     rxData = uart.readline()
     if rxData is not None:
         direction = int(rxData[0])
         color = int(rxData[1])
-        if color >= 0 and color <= 9:
-            pixels_fill_show(direction, PACKETS[color])
+        if 0 <= color <= 9:
+            display_color_directionally(direction, PACKETS[color])
+

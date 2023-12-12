@@ -12,6 +12,9 @@ import (
 	getserial "go.bug.st/serial.v1"
 )
 
+var deviceIPv4 string
+var deviceIPv6 string
+
 func main() {
 	// シリアルポートを開く
 	config := setSerialPort()
@@ -24,6 +27,13 @@ func main() {
 	// ネットワークデバイスを選択
 	selectedDevice := setNetworkDevice()
 	deviceName := selectedDevice.Name
+	for _, address := range selectedDevice.Addresses {
+		if address.IP.To4() != nil {
+			deviceIPv4 = address.IP.String()
+		} else {
+			deviceIPv6 = address.IP.String()
+		}
+	}
 
 	// 最初のネットワークデバイスを使用してパケットキャプチャを開始
 	handle, err := pcap.OpenLive(deviceName, 65536, true, pcap.BlockForever)
@@ -55,7 +65,7 @@ func main() {
 			log.Fatal(err)
 		}
 		// 0.1秒待つ
-		time.Sleep(150 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 	}
 }
 
@@ -118,14 +128,10 @@ func getPacketType(device pcap.Interface, packet gopacket.Packet) []byte {
 	} else {
 		fmt.Print("\x1b[37mWhite\tothers")
 	}
-	// 送信ならpacketType[0]を1にする、受信なら0のまま
-	for _, address := range device.Addresses {
-		// panic: runtime error: invalid memory address or nil pointer dereference
-		if nil == packet.NetworkLayer() {
-			continue
-		}
 
-		if address.IP.String() == packet.NetworkLayer().NetworkFlow().Dst().String() {
+	// 送信ならpacketType[0]を1にする、受信なら0のまま
+	if nil != packet.NetworkLayer() {
+		if packet.NetworkLayer().NetworkFlow().Src().String() == deviceIPv4 || packet.NetworkLayer().NetworkFlow().Src().String() == deviceIPv6 {
 			packetType[0] = 0
 		}
 	}
@@ -142,6 +148,14 @@ func getPacketType(device pcap.Interface, packet gopacket.Packet) []byte {
 	if nil != packet.NetworkLayer() {
 		source = packet.NetworkLayer().NetworkFlow().Src()
 		destination = packet.NetworkLayer().NetworkFlow().Dst()
+		if packetType[0] == 0 {
+			fmt.Printf("\t\x1b[34m%s\t\x1b[0m%s", source, destination)
+		} else {
+			fmt.Printf("\t\x1b[0m%s\t\x1b[34m%s", source, destination)
+		}
+	} else {
+		source = packet.LinkLayer().LinkFlow().Src()
+		destination = packet.LinkLayer().LinkFlow().Dst()
 		if packetType[0] == 0 {
 			fmt.Printf("\t\x1b[34m%s\t\x1b[0m%s", source, destination)
 		} else {
